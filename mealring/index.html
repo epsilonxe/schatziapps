@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ringing Circle</title>
+    <!-- Tailwind CSS CDN for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDN for sound generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Custom styles for animations and specific elements not covered by Tailwind */
+        body {
+            font-family: "Inter", sans-serif; /* Using Inter font as per instructions */
+        }
+
+        /* Keyframe animation for the ringing effect */
+        @keyframes ringEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Apply animation when the 'ringing' class is present */
+        .circle-container.ringing {
+            animation: ringEffect 0.5s forwards; /* 0.5s duration, stays at end state */
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+    <!-- Main container for the circle and button -->
+    <div class="flex flex-col items-center justify-center w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
+
+        <!-- Running time display -->
+        <div id="runningTime" class="text-gray-800 text-3xl sm:text-4xl font-bold mb-6">
+            00:00.00
+        </div>
+
+        <!-- The circle element -->
+        <div id="myCircle"
+             class="circle-container
+                    w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 /* Responsive sizing */
+                    rounded-full
+                    bg-emerald-500 /* Green color */
+                    flex items-center justify-center
+                    cursor-pointer
+                    shadow-lg hover:shadow-xl
+                    transition-all duration-300 ease-in-out">
+            <!-- Bell emoji inside the circle -->
+            <span class="text-white text-3xl sm:text-4xl md:text-5xl font-bold">🔔</span>
+        </div>
+
+        <!-- Dropdown for sound options -->
+        <div class="mt-8 w-full flex flex-col items-center">
+            <label for="soundSelect" class="text-gray-700 text-lg font-semibold mb-2">Choose a Bell Sound:</label>
+            <select id="soundSelect"
+                    class="w-full max-w-xs p-3 border border-gray-300 rounded-lg shadow-sm
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           text-center text-gray-800 text-base sm:text-lg">
+                <option value="classicBell">Classic Bell</option>
+                <option value="chime">Chime</option>
+                <option value="gong">Gong</option>
+                <option value="handbell">Handbell</option>
+                <option value="serviceBell">Service Bell</option>
+                <option value="churchBell">Church Bell</option>
+                <option value="tinkleBell">Tinkle Bell</option>
+                <option value="digitalChime">Digital Chime</option>
+                <option value="deepGong">Deep Gong</option>
+                <option value="crystalBell">Crystal Bell</option>
+            </select>
+        </div>
+
+        <!-- Button to trigger the selected bell sound -->
+        <button id="ringButton"
+                class="mt-8 px-6 py-3
+                       bg-blue-600 text-white
+                       text-lg font-semibold
+                       rounded-lg shadow-md hover:bg-blue-700
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75
+                       transition-colors duration-300 ease-in-out
+                       transform hover:scale-105 active:scale-95">
+            Ring the Bell
+        </button>
+    </div>
+
+    <script>
+        // Get references to the HTML elements
+        const myCircle = document.getElementById('myCircle');
+        const ringButton = document.getElementById('ringButton');
+        const soundSelect = document.getElementById('soundSelect');
+        const runningTimeDisplay = document.getElementById('runningTime');
+
+        // Timer variables
+        let startTime;
+        let timerInterval;
+
+        // Define different bell sound configurations
+        const soundConfigs = {
+            classicBell: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.8, sustain: 0.1, release: 1.5 },
+                volume: 5,
+                note: 'C4',
+                duration: '0.5'
+            },
+            chime: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.4, sustain: 0.05, release: 1 },
+                volume: 3,
+                note: 'G5',
+                duration: '0.4'
+            },
+            gong: {
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.1, decay: 2, sustain: 0.01, release: 3 },
+                volume: 8,
+                note: 'C2',
+                duration: '2'
+            },
+            handbell: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.8 },
+                volume: 6,
+                note: 'E5',
+                duration: '0.3'
+            },
+            serviceBell: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.3 },
+                volume: 7,
+                note: 'F#4',
+                duration: '0.2'
+            },
+            churchBell: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.2, decay: 3, sustain: 0.05, release: 5 },
+                volume: 10,
+                note: 'A2',
+                duration: '3'
+            },
+            tinkleBell: {
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.2 },
+                volume: 4,
+                note: 'C6',
+                duration: '0.15'
+            },
+            digitalChime: {
+                oscillator: { type: 'sawtooth' },
+                envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 0.6 },
+                volume: 2,
+                note: 'D5',
+                duration: '0.5'
+            },
+            deepGong: {
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.5, decay: 4, sustain: 0.01, release: 6 },
+                volume: 12,
+                note: 'C1',
+                duration: '4'
+            },
+            crystalBell: {
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.01, decay: 0.7, sustain: 0.05, release: 1.2 },
+                volume: 6,
+                note: 'F5',
+                duration: '0.6'
+            }
+        };
+
+        // Initialize Tone.js synth (it will be reconfigured based on selection)
+        const synth = new Tone.Synth().toDestination();
+
+        /**
+         * Formats milliseconds into a MM:SS.ms string.
+         * @param {number} ms - The time in milliseconds.
+         * @returns {string} Formatted time string.
+         */
+        function formatTime(ms) {
+            const minutes = Math.floor(ms / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            const milliseconds = Math.floor((ms % 1000) / 10); // Get two digits for milliseconds
+
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
+        }
+
+        /**
+         * Updates the running time display.
+         */
+        function updateTimer() {
+            const elapsedTime = Date.now() - startTime;
+            runningTimeDisplay.textContent = formatTime(elapsedTime);
+        }
+
+        /**
+         * Starts the timer.
+         */
+        function startTimer() {
+            clearInterval(timerInterval); // Clear any existing timer
+            startTime = Date.now();
+            runningTimeDisplay.textContent = formatTime(0); // Reset display immediately
+            timerInterval = setInterval(updateTimer, 10); // Update every 10ms for smooth milliseconds
+        }
+
+        /**
+         * Plays the selected bell sound using Tone.js and triggers a visual "ringing" animation on the circle.
+         * Also handles stopping and restarting the timer.
+         */
+        async function playBellSound() {
+            // Stop the timer when the bell is pressed
+            clearInterval(timerInterval);
+            runningTimeDisplay.textContent = formatTime(0); // Reset display to 00:00.00
+
+            // Start Tone.js context if it's not already running (required for many browsers)
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+                console.log("Tone.js audio context started.");
+            }
+
+            // Get the selected sound type from the dropdown
+            const selectedSoundType = soundSelect.value;
+            const config = soundConfigs[selectedSoundType];
+
+            // Apply the selected sound's configuration to the synth
+            synth.set({
+                oscillator: { type: config.oscillator.type },
+                envelope: config.envelope,
+                volume: config.volume
+            });
+
+            // Trigger the synth to play the note with the specified duration
+            synth.triggerAttackRelease(config.note, config.duration);
+
+            // Add the 'ringing' class to trigger the CSS animation
+            myCircle.classList.add('ringing');
+
+            // Remove the 'ringing' class after the animation duration to reset for next play
+            // The animation duration is 0.5s as defined in CSS
+            setTimeout(() => {
+                myCircle.classList.remove('ringing');
+                startTimer(); // Restart the timer after the ringing animation finishes
+            }, 500); // Match this timeout to the CSS animation duration
+        }
+
+        // Add event listeners to both the button and the circle
+        // Clicking the button will play the sound
+        ringButton.addEventListener('click', playBellSound);
+        // Clicking the circle itself will also play the sound
+        myCircle.addEventListener('click', playBellSound);
+
+        // Start the timer when the page loads
+        window.onload = startTimer;
+    </script>
+</body>
+</html>
